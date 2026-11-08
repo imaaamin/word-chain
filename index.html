@@ -117,13 +117,19 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .prow{display:flex;flex-direction:column;gap:8px}
 .prow + .prow{padding-top:12px;border-top:1px solid var(--line)}
 .answer{font-family:var(--mono);font-size:1rem;line-height:1.7;overflow-wrap:anywhere}
+.banner{position:relative;overflow:hidden;justify-content:space-between}
+.banner .bt{min-width:0}
+.clock{font-family:var(--mono);font-size:2rem;line-height:1;font-variant-numeric:tabular-nums;min-width:2.2ch;text-align:right;flex:none}
+.clock.low{color:var(--bad);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.tbar{position:absolute;left:0;bottom:0;height:4px;width:100%;background:currentColor;opacity:.55;transition:width .2s linear}
 .win.p1{background:var(--p1-soft);color:var(--p1-ink)} .win.p2{background:var(--p2-soft);color:var(--p2-ink)} .win.p3{background:var(--p3-soft);color:var(--p3-ink)}
 .win h2{font-size:1.7rem}
 .win .seg button{color:inherit;border-color:currentColor}
 .win .seg button[aria-pressed=true]{background:currentColor}
 .win .seg button[aria-pressed=true] span{color:var(--bg)}
 .toast{font-size:.86rem;color:var(--bad);text-align:center}
-@media (prefers-reduced-motion: reduce){.link.just .t,.shake{animation:none}}
+@media (prefers-reduced-motion: reduce){.link.just .t,.shake,.clock.low{animation:none}.tbar{transition:none}}
 </style>
 </head>
 <body>
@@ -185,6 +191,8 @@ const DIFFS = ["easy","medium","hard"];
 const DIFF_LABEL = {easy:"Easy", medium:"Medium", hard:"Hard"};
 const GOAL = 6;                     // words to guess after the starting word
 const MAX_P = 3;
+const TURN_MS = 40000;               // 40 seconds per guess
+const GRACE_MS = 3000;               // if the guesser's phone is asleep, another phone ends the turn after this
 const SEATS = [1, 2, 3];
 const RELAY = "https://ntfy.sh/";   // free public relay, no account needed
 const TOPIC_PREFIX = "wordchainduel-v3-";
@@ -290,7 +298,9 @@ function receive(st){
 }
 function commit(mutate){
   const ns = JSON.parse(JSON.stringify(G));
+  const before = JSON.stringify(ns);
   mutate(ns);
+  if (JSON.stringify(ns) === before) return;
   ns.v = G.v + 1; ns.by = myId; ns.at = Date.now();
   G = ns; pubTries = 0;
   render(); publish();
@@ -335,9 +345,10 @@ function claimSeat(s){
   L.seat = s; saveSeat();
   commit(ns => { ns.ids[s] = myId; if (L.nick.trim()) ns.names[s] = L.nick.trim().slice(0,20); });
 }
+function setClock(ns){ ns.deadline = Date.now() + TURN_MS; ns.tick = (ns.tick || 0) + 1; }
 function startInto(ns){
   ns.seats = SEATS.filter(s => ns.ids[s]);
-  ns.status = "playing"; ns.turn = ns.seats[0]; ns.winner = 0;
+  ns.status = "playing"; ns.turn = ns.seats[0]; ns.winner = 0; setClock(ns);
 }
 function startGame(){
   if (!G || G.status !== "lobby" || members().length < 2) return;
@@ -364,14 +375,14 @@ function guess(){
     L.fb = {ok:true, msg: done ? "Chain complete!" : `Yes! ${list[ps.solved]} ${target.toLowerCase()}. Keep going.`};
     commit(ns => {
       const p = ns.p[s]; p.solved++; p.rev = 1;
-      if (p.solved >= GOAL) { ns.status = "over"; ns.winner = s; }
+      if (p.solved >= GOAL) { ns.status = "over"; ns.winner = s; ns.deadline = 0; } else setClock(ns);
     });
   } else {
     const g = clean(text).slice(0, 20), nx = nextSeat(s);
     L.fb = {ok:false, msg:`“${g}” isn't it. ${nameOf(nx)}'s turn.`, shake:true};
     commit(ns => {
       const p = ns.p[s]; p.miss++; p.rev = Math.min(p.rev + 1, Math.max(1, target.length - 1));
-      ns.turn = nx;
+      ns.turn = nx; setClock(ns);
     });
   }
 }
@@ -385,7 +396,7 @@ function rematch(){
     ns.li = pickLists(diff, avoid); ns.p = {1:blankP(), 2:blankP(), 3:blankP()};
     ns.seats = SEATS.filter(s => ns.ids[s]);                      // anyone who joined between rounds plays too
     const after = w && ns.seats.includes(w) ? ns.seats[(ns.seats.indexOf(w) + 1) % ns.seats.length] : ns.seats[0];
-    ns.turn = after; ns.winner = 0;                                // the player after the winner starts
+    ns.turn = after; ns.winner = 0; setClock(ns);                  // the player after the winner starts
   });
 }
 async function invite(){
@@ -495,6 +506,7 @@ function homeHTML(){
     <h2>Rules</h2>
     <ul class="rules small">
       <li>Guess your next word. Right: keep going. Wrong: your turn passes to the next player.</li>
+      <li>You get 40 seconds per guess. Running out counts as a miss.</li>
       <li>Every miss reveals one more letter of that word.</li>
       <li>First to finish their chain wins.</li>
     </ul>
@@ -549,8 +561,9 @@ function gameHTML(){
     h += `<div class="banner wait"><span>You're in for the next round<span class="sub">This round is already underway. Watch along below.</span></span></div>`;
   } else {
     const yours = G.turn === L.seat;
-    h += `<div class="banner p${G.turn}"><span>${yours ? "Your turn" : `${esc(nameOf(G.turn))}'s turn`}
-      <span class="sub">${yours ? "Guess until you miss." : `Turn order: ${G.seats.map(s => esc(nameOf(s))).join(" → ")}`}</span></span></div>`;
+    h += `<div class="banner p${G.turn}"><span class="bt">${yours ? "Your turn" : `${esc(nameOf(G.turn))}'s turn`}
+      <span class="sub">${yours ? "Guess until you miss. Each right answer resets the clock." : `Turn order: ${G.seats.map(s => esc(nameOf(s))).join(" → ")}`}</span></span>
+      ${G.deadline ? `<span class="clock" id="clock" aria-label="Seconds left">${clockText()}</span><span class="tbar" id="tbar"></span>` : ""}</div>`;
   }
   const others = othersHTML(G.seats.filter(s => s !== L.seat));
   if (G.status === "over") return h + answerHTML() + others + (playing ? myBoard() : "");
@@ -566,6 +579,35 @@ function render(){
   if (L.just) setTimeout(() => { L.just = null; }, 700);
   document.title = G && G.status === "playing" && G.turn === L.seat ? "Your turn · Word Chain Duel" : "Word Chain Duel";
 }
+
+/* ===== turn clock ===== */
+const remaining = () => G && G.deadline ? G.deadline - Date.now() : TURN_MS;
+function clockText(){ return String(Math.max(0, Math.ceil(remaining() / 1000))); }
+let timedOut = 0, buzzed = 0;
+function timeUp(){
+  const s = G.turn, tick = G.tick;
+  if (timedOut === tick) return;
+  timedOut = tick;
+  const nx = nextSeat(s);
+  if (s === L.seat) L.fb = {ok:false, msg:`Time's up! ${nameOf(nx)}'s turn.`, shake:true};
+  commit(ns => {
+    if (ns.status !== "playing" || ns.turn !== s || ns.tick !== tick) return;
+    const p = ns.p[s], target = LISTS[ns.diff][ns.li[s - 1]][p.solved + 1];
+    p.miss++; p.rev = Math.min(p.rev + 1, Math.max(1, target.length - 1));
+    ns.turn = nx; setClock(ns);
+  });
+}
+setInterval(() => {
+  if (!G || G.status !== "playing" || !G.deadline || L.screen !== "game") return;
+  const rem = remaining();
+  const c = document.getElementById("clock"), b = document.getElementById("tbar");
+  if (c) { c.textContent = clockText(); c.classList.toggle("low", rem <= 10000); }
+  if (b) b.style.width = Math.max(0, Math.min(100, rem / TURN_MS * 100)) + "%";
+  if (G.turn === L.seat && rem <= 10000 && rem > 9000 && buzzed !== G.tick) { buzzed = G.tick; try { navigator.vibrate && navigator.vibrate([60, 80, 60]); } catch(e){} }
+  // the guesser's phone ends its own turn; anyone else steps in if that phone has gone quiet
+  if (rem <= 0 && G.turn === L.seat) timeUp();
+  else if (rem <= -GRACE_MS && L.seat && G.ids[L.seat] === myId) timeUp();
+}, 200);
 
 /* ===== events ===== */
 document.addEventListener("click", e => {
