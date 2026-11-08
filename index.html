@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Word Chain Duel</title>
+<meta name="theme-color" content="#ECEFF3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#ECEFF3; --surface:#FFFFFF; --ink:#17202B; --muted:#5B6878; --line:#D3DAE3; --tile:#F4F6F9;
+  --p1:#D9801F; --p1-soft:#FCE9D2; --p1-ink:#8A4C0A;
+  --p2:#1C8478; --p2-soft:#D2EEEA; --p2-ink:#0E554D;
+  --p3:#7A4FC4; --p3-soft:#EBE2FA; --p3-ink:#4B2A85;
+  --good:#2C8A55; --bad:#C4433A;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,sans-serif;
+  --mono:"DM Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#11151B; --surface:#1A2029; --ink:#E9EDF2; --muted:#9AA6B5; --line:#2C3542; --tile:#232B36;
+  --p1:#F0A04A; --p1-soft:#3A2A17; --p1-ink:#F6C58C;
+  --p2:#3DB8A9; --p2-soft:#143430; --p2-ink:#8FDDD3;
+  --p3:#A98BEA; --p3-soft:#2B2340; --p3-ink:#CDB9F5;
+  --good:#58C285; --bad:#EE6B61; color-scheme:dark;
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:2.1rem;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+h2{font-size:1.15rem;font-weight:800}
+p{margin:0}
+.muted{color:var(--muted)} .small{font-size:.86rem} .center{text-align:center}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.eyebrow{font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+label{font-weight:700;font-size:.9rem}
+input[type=text]{font:inherit;font-size:1.05rem;width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--tile);color:var(--ink);min-width:0}
+input[type=text]:focus{outline:none;border-color:var(--ink)}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:10px;border:1.5px solid transparent;padding:12px 16px;color:var(--ink);background:var(--tile)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--p2);outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btn-main{background:var(--ink);color:var(--bg)}
+.btn-ghost{background:transparent;border-color:var(--line)}
+.row{display:flex;gap:8px;align-items:center}
+.row > input{flex:1}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg button{padding:10px 6px;border-color:var(--line);background:transparent}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rules{display:flex;flex-direction:column;gap:6px;margin:0;padding-left:20px}
+.example{font-family:var(--mono);font-size:.9rem;color:var(--muted);overflow-wrap:anywhere}
+.err{color:var(--bad);font-weight:700;font-size:.9rem;min-height:1.2em}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:.86rem}
+.chip b{font-family:var(--mono);font-size:1.02rem;letter-spacing:.08em}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.live{background:var(--good)} .dot.off{background:var(--bad)}
+.bigcode{font-family:var(--mono);font-size:3rem;letter-spacing:.18em;text-align:center;padding:8px 0}
+.banner{border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:1.25rem}
+.banner.p1{background:var(--p1-soft);color:var(--p1-ink)} .banner.p2{background:var(--p2-soft);color:var(--p2-ink)} .banner.p3{background:var(--p3-soft);color:var(--p3-ink)}
+.banner.wait{background:var(--surface);border:1px dashed var(--line);color:var(--muted);font-size:1.05rem}
+.banner .sub{display:block;font-family:var(--body);font-weight:400;font-size:.88rem;opacity:.9}
+
+.board-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.who{display:flex;align-items:center;gap:8px;min-width:0}
+.sw{width:12px;height:12px;border-radius:3px;flex:none;background:var(--pc)}
+.who h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score{font-family:var(--mono);font-size:.92rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.p1{--pc:var(--p1);--pcs:var(--p1-soft)} .p2{--pc:var(--p2);--pcs:var(--p2-soft)} .p3{--pc:var(--p3);--pcs:var(--p3-soft)}
+.pill{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:999px;background:var(--pcs);color:var(--ink)}
+.roster{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.roster li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--tile)}
+.roster li.empty{background:transparent;border:1.5px dashed var(--line)}
+.roster li.empty .sw{background:var(--line)}
+.chain{display:flex;flex-direction:column;list-style:none;margin:0;padding:0}
+.link{position:relative;padding:6px 0 6px 26px}
+.link::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--line)}
+.link:first-child::before{top:50%} .link:last-child::before{bottom:50%}
+.link::after{content:"";position:absolute;left:3px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:var(--surface);border:2px solid var(--line)}
+.link.done::after{background:var(--pc);border-color:var(--pc)}
+.link.cur::after{border-color:var(--pc);box-shadow:0 0 0 4px var(--pcs)}
+.tiles{display:flex;gap:4px;min-width:0}
+.t{flex:1 1 0;min-width:0;max-width:34px;aspect-ratio:1/1.12;display:grid;place-items:center;border-radius:7px;background:var(--tile);
+  font-family:var(--mono);font-size:clamp(.82rem,4vw,1.15rem);text-transform:uppercase;color:var(--ink);border:1.5px solid transparent}
+.t.blank{background:transparent;border:1.5px dashed var(--line)}
+.t.hint{color:var(--muted)}
+.t.more{max-width:none;flex:0 0 auto;aspect-ratio:auto;padding:0 8px;background:transparent;color:var(--muted)}
+.link.done .t{background:var(--pcs)}
+.link.cur .t:not(.blank){border-color:var(--pc)}
+.link.just .t{animation:pop .45s ease-out both}
+.link.just .t:nth-child(2){animation-delay:.04s}.link.just .t:nth-child(3){animation-delay:.08s}.link.just .t:nth-child(4){animation-delay:.12s}
+.link.just .t:nth-child(5){animation-delay:.16s}.link.just .t:nth-child(n+6){animation-delay:.2s}
+@keyframes pop{0%{transform:rotateX(90deg)}100%{transform:none}}
+.pair{font-size:.78rem;color:var(--muted);margin-top:3px}
+.guess{display:flex;gap:8px}
+.guess input{flex:1;min-width:0}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.feedback{font-weight:700;font-size:.95rem}
+.feedback.ok{color:var(--good)} .feedback.bad{color:var(--bad)}
+.mini{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:.92rem}
+.mini span{padding:3px 8px;border-radius:6px;background:var(--tile);color:var(--muted)}
+.mini span.d{background:var(--pcs);color:var(--ink)}
+.mini span.c{border:1.5px solid var(--pc);color:var(--ink)}
+.last{font-size:.88rem;color:var(--muted)}
+.win{text-align:center;padding:22px 16px;border-radius:14px;display:flex;flex-direction:column;gap:12px;align-items:stretch}
+.prog{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.prog span{height:10px;border-radius:4px;background:var(--tile);border:1px solid var(--line)}
+.prog span.f{background:var(--pc);border-color:var(--pc)}
+.prow{display:flex;flex-direction:column;gap:8px}
+.prow + .prow{padding-top:12px;border-top:1px solid var(--line)}
+.answer{font-family:var(--mono);font-size:1rem;line-height:1.7;overflow-wrap:anywhere}
+.win.p1{background:var(--p1-soft);color:var(--p1-ink)} .win.p2{background:var(--p2-soft);color:var(--p2-ink)} .win.p3{background:var(--p3-soft);color:var(--p3-ink)}
+.win h2{font-size:1.7rem}
+.win .seg button{color:inherit;border-color:currentColor}
+.win .seg button[aria-pressed=true]{background:currentColor}
+.win .seg button[aria-pressed=true] span{color:var(--bg)}
+.toast{font-size:.86rem;color:var(--bad);text-align:center}
+@media (prefers-reduced-motion: reduce){.link.just .t,.shake{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p class="muted">Loading Word Chain Duel…</p></div>
+<script>
+/* ===== word lists (v2, all new): each word pairs naturally with the one before it ===== */
+const LISTS = {
+  easy: [
+    ["Apple","Juice","Box","Car","Wash","Room","Mate"],
+    ["Hot","Dog","Food","Chain","Saw","Dust","Bin"],
+    ["Sleep","Over","Time","Line","Up","Grade","School"],
+    ["Pine","Apple","Tree","House","Party","Animal","Farm"],
+    ["Bubble","Gum","Drop","Down","Hill","Top","Secret"],
+    ["Pea","Nut","Butter","Cup","Cake","Shop","Window"],
+    ["Jelly","Fish","Finger","Print","Out","Door","Mat"],
+    ["Sweet","Heart","Beat","Box","Set","Up","Hill"],
+    ["Wonder","Land","Slide","Show","Time","Zone","Out"],
+    ["Ear","Ring","Finger","Tip","Toe","Nail","Polish"],
+    ["Blue","Sky","High","School","Bus","Stop","Sign"],
+    ["Wall","Paper","Clip","Art","Work","Place","Mat"],
+    ["Home","Work","Book","Store","Front","Desk","Top"],
+    ["Gift","Card","Game","Night","Shift","Key","Hole"]
+  ],
+  medium: [
+    ["Red","Sea","Side","Car","Park","Bench","Press"],
+    ["Foot","Ball","Point","Guard","Dog","Tag","Line"],
+    ["Wind","Mill","Stone","Age","Group","Chat","Room"],
+    ["Eye","Candy","Cane","Sugar","Rush","Hour","Glass"],
+    ["Pay","Roll","Call","Sign","Post","Card","Shark"],
+    ["Spring","Onion","Ring","Leader","Board","Meeting","Point"],
+    ["Pillow","Talk","Show","Down","Side","Step","Ladder"],
+    ["Lemon","Grass","Land","Mark","Up","Beat","Box"],
+    ["Lap","Top","Gun","Powder","Room","Key","Note"],
+    ["Fortune","Cookie","Dough","Nut","Shell","Shock","Wave"],
+    ["Dragon","Fruit","Salad","Dressing","Table","Tennis","Court"],
+    ["Mouse","Pad","Lock","Screen","Shot","Gun","Fire"],
+    ["Bath","Salt","Water","Bottle","Neck","Tie","Dye"],
+    ["Grand","Father","Clock","Tower","Block","Party","Trick"]
+  ],
+  hard: [
+    ["Witch","Craft","Beer","Belly","Button","Mushroom","Cloud"],
+    ["Cold","Shoulder","Blade","Runner","Bean","Counter","Attack"],
+    ["Elbow","Grease","Monkey","Business","Class","Clown","Fish"],
+    ["Smoke","Screen","Test","Pilot","Light","Switch","Blade"],
+    ["Chicken","Feed","Back","Bone","China","Town","House"],
+    ["Ghost","Town","Square","Dance","Hall","Pass","Port"],
+    ["Cast","Iron","Curtain","Call","Waiting","Game","Changer"],
+    ["Early","Bird","Brain","Wave","Pool","Table","Manners"],
+    ["Silk","Road","Kill","Joy","Ride","Share","Holder"],
+    ["Polar","Bear","Claw","Machine","Learning","Curve","Ball"],
+    ["Ivory","Tower","Bridge","Loan","Shark","Tooth","Fairy"],
+    ["Sour","Cream","Soda","Fountain","Pen","Name","Sake"],
+    ["Wet","Blanket","Statement","Piece","Meal","Ticket","Stub"],
+    ["Alphabet","Soup","Kitchen","Garden","Variety","Show","Stopper"],
+    ["Dark","Horse","Play","Date","Palm","Reading","Glasses"]
+  ]
+};
+const DIFFS = ["easy","medium","hard"];
+const DIFF_LABEL = {easy:"Easy", medium:"Medium", hard:"Hard"};
+const GOAL = 6;                     // words to guess after the starting word
+const MAX_P = 3;
+const SEATS = [1, 2, 3];
+const RELAY = "https://ntfy.sh/";   // free public relay, no account needed
+const TOPIC_PREFIX = "wordchainduel-v3-";
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/* ===== helpers ===== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clean = s => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+const store = {
+  get(k){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }catch(e){ return null; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const randCode = () => Array.from({length:4}, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
+const validCode = c => new RegExp("^[" + CODE_CHARS + "]{4}$").test(c || "");
+const isMatch = (g, t) => { g = clean(g); t = clean(t); return g === t || g === t + "s" || (t.endsWith("s") && g === t.slice(0, -1)); };
+const blankP = () => ({solved:0, miss:0, rev:1});
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : (w.endsWith("s") ? "es" : "s")}`;
+function pickLists(diff, avoid){
+  const n = LISTS[diff].length, bad = new Set(avoid || []);
+  let src = [...Array(n).keys()].filter(i => !bad.has(i));
+  if (!src.length) src = [...Array(n).keys()];
+  const one = src[Math.floor(Math.random() * src.length)];
+  return Array(MAX_P).fill(one);                                   // everyone plays the same chain
+}
+
+/* ===== local + shared state ===== */
+const myId = store.get("wcd:id") || (() => { const id = Math.random().toString(36).slice(2, 10); store.set("wcd:id", id); return id; })();
+const L = {               // this phone only
+  screen: "home", nick: store.get("wcd:nick") || "", diff: "medium", joinCode: "",
+  room: null, seat: 0, net: "idle", sendErr: false, fb: null, just: null, joinErr: "", nextDiff: null
+};
+let G = null;             // shared game state, last-writer-wins by version
+let seatTimer = null;
+let es = null;
+
+const members = () => SEATS.filter(s => G.ids[s]);                 // everyone in the room
+const inRound = s => G.seats.includes(s);                          // playing this round
+function nextSeat(s){ const a = G.seats, i = a.indexOf(s); return a[(i + 1) % a.length]; }
+function listOf(seat){ return LISTS[G.diff][G.li[seat - 1]]; }
+function nameOf(seat){ return (G && G.names[seat]) || ("Player " + seat); }
+
+/* ===== relay: publish full state, subscribe and keep the newest version ===== */
+function topic(){ return TOPIC_PREFIX + L.room; }
+function subscribe(){
+  unsubscribe();
+  L.net = "connecting"; render();
+  es = new EventSource(RELAY + topic() + "/sse?since=all");
+  es.onopen = () => { L.net = "live"; render(); };
+  es.onerror = () => { L.net = "off"; render(); };
+  es.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+    if (m.event !== "message" || !m.message) return;
+    let st; try { st = JSON.parse(m.message); } catch(e){ return; }
+    receive(st);
+  };
+}
+function unsubscribe(){ if (es) { es.close(); es = null; } L.net = "idle"; }
+let pubTimer = null, pubTries = 0;
+async function publish(){
+  clearTimeout(pubTimer);
+  const snap = JSON.stringify(G);
+  try {
+    const r = await fetch(RELAY + topic(), {method:"POST", body:snap});
+    if (!r.ok) throw new Error(r.status);
+    L.sendErr = false; pubTries = 0; render();
+  } catch(e) {
+    L.sendErr = true; render();
+    pubTries++;
+    if (pubTries < 8) pubTimer = setTimeout(publish, Math.min(15000, 2000 * pubTries));
+  }
+}
+function valid(st){
+  if (!st || st.app !== "wcd3" || st.room !== L.room || typeof st.v !== "number") return false;
+  if (!["lobby","playing","over"].includes(st.status)) return false;
+  if (!DIFFS.includes(st.diff) || !Array.isArray(st.li) || st.li.length !== MAX_P) return false;
+  if (!st.li.every(i => Number.isInteger(i) && i >= 0 && i < LISTS[st.diff].length)) return false;
+  if (!st.p || !st.names || !st.ids || !Array.isArray(st.seats)) return false;
+  if (!SEATS.every(s => st.p[s] && Number.isInteger(st.p[s].solved) && st.p[s].solved >= 0 && st.p[s].solved <= GOAL)) return false;
+  if (!st.seats.every(s => SEATS.includes(s))) return false;
+  if (st.status !== "lobby" && (st.seats.length < 2 || !st.seats.includes(st.turn))) return false;
+  return true;
+}
+function receive(st){
+  if (!valid(st)) return;
+  const newer = !G || st.v > G.v || (st.v === G.v && String(st.by) > String(G.by));
+  if (!newer) return;
+  const prev = G;
+  G = st;
+  for (const s of SEATS) {
+    if (prev && prev.round === G.round && G.p[s].solved > prev.p[s].solved) L.just = {seat:s, i:G.p[s].solved};
+  }
+  if (prev && prev.round !== G.round) L.fb = null;
+  if (prev && G.turn === L.seat && prev.turn !== L.seat && G.status === "playing") {
+    try { navigator.vibrate && navigator.vibrate(120); } catch(e){}
+  }
+  // someone else took my seat (two people joined at the same moment): find another one
+  if (L.seat && G.ids[L.seat] && G.ids[L.seat] !== myId) { L.seat = 0; store.set("wcd:seat:" + L.room, 0); }
+  // new phone in the room: wait until the replay of past moves settles, then take a free seat
+  if (L.seat === 0) { clearTimeout(seatTimer); seatTimer = setTimeout(autoSeat, 1200); }
+  routeFromState();
+  render();
+}
+function commit(mutate){
+  const ns = JSON.parse(JSON.stringify(G));
+  mutate(ns);
+  ns.v = G.v + 1; ns.by = myId; ns.at = Date.now();
+  G = ns; pubTries = 0;
+  render(); publish();
+}
+
+/* ===== room flow ===== */
+function saveSeat(){ store.set("wcd:seat:" + L.room, L.seat); store.set("wcd:last", L.room); }
+function enterRoom(code){
+  L.room = code; G = null; L.fb = null; L.just = null;
+  L.seat = store.get("wcd:seat:" + code) || 0;
+  try { history.replaceState(null, "", "?room=" + code); } catch(e){}
+  L.screen = "loading";
+  subscribe();
+  render();
+  // if nothing arrives the room doesn't exist (yet)
+  setTimeout(() => { if (L.room === code && !G && L.screen === "loading") { L.screen = "notfound"; render(); } }, 7000);
+}
+function createRoom(){
+  const code = randCode();
+  L.room = code; L.seat = 1; saveSeat();
+  G = {app:"wcd3", room:code, v:1, by:myId, at:Date.now(), round:1, status:"lobby",
+       diff:L.diff, li:pickLists(L.diff),
+       names:{1:L.nick.trim().slice(0,20), 2:"", 3:""}, ids:{1:myId, 2:"", 3:""},
+       p:{1:blankP(), 2:blankP(), 3:blankP()}, seats:[], turn:1, winner:0};
+  try { history.replaceState(null, "", "?room=" + code); } catch(e){}
+  L.screen = "game"; L.fb = null;
+  subscribe(); publish(); render();
+}
+function autoSeat(){
+  if (!G || L.seat) return;
+  if (G.status === "playing") { render(); return; }          // mid-game: offer "I'm one of these" instead
+  const free = SEATS.find(s => !G.ids[s]);
+  if (!free) { render(); return; }
+  L.seat = free; saveSeat();
+  commit(ns => {
+    ns.ids[free] = myId; ns.names[free] = L.nick.trim().slice(0,20) || ("Player " + free);
+    // the room is full: start straight away
+    if (ns.status === "lobby" && SEATS.every(s => ns.ids[s])) startInto(ns);
+  });
+}
+function claimSeat(s){
+  L.seat = s; saveSeat();
+  commit(ns => { ns.ids[s] = myId; if (L.nick.trim()) ns.names[s] = L.nick.trim().slice(0,20); });
+}
+function startInto(ns){
+  ns.seats = SEATS.filter(s => ns.ids[s]);
+  ns.status = "playing"; ns.turn = ns.seats[0]; ns.winner = 0;
+}
+function startGame(){
+  if (!G || G.status !== "lobby" || members().length < 2) return;
+  commit(ns => startInto(ns));
+}
+function routeFromState(){
+  if (L.screen === "loading" || L.screen === "notfound") L.screen = "game";
+}
+function leaveRoom(){
+  unsubscribe(); clearTimeout(pubTimer); clearTimeout(seatTimer);
+  G = null; L.room = null; L.seat = 0; L.screen = "home"; L.fb = null;
+  try { history.replaceState(null, "", location.pathname); } catch(e){}
+  render();
+}
+function guess(){
+  const inp = $("#guess"); if (!inp || !G) return;
+  const text = inp.value, s = L.seat;
+  if (!clean(text) || G.status !== "playing" || G.turn !== s || !inRound(s)) return;
+  const list = listOf(s), ps = G.p[s], target = list[ps.solved + 1];
+  inp.value = "";
+  if (isMatch(text, target)) {
+    L.just = {seat:s, i:ps.solved + 1};
+    const done = ps.solved + 1 >= GOAL;
+    L.fb = {ok:true, msg: done ? "Chain complete!" : `Yes! ${list[ps.solved]} ${target.toLowerCase()}. Keep going.`};
+    commit(ns => {
+      const p = ns.p[s]; p.solved++; p.rev = 1;
+      if (p.solved >= GOAL) { ns.status = "over"; ns.winner = s; }
+    });
+  } else {
+    const g = clean(text).slice(0, 20), nx = nextSeat(s);
+    L.fb = {ok:false, msg:`“${g}” isn't it. ${nameOf(nx)}'s turn.`, shake:true};
+    commit(ns => {
+      const p = ns.p[s]; p.miss++; p.rev = Math.min(p.rev + 1, Math.max(1, target.length - 1));
+      ns.turn = nx;
+    });
+  }
+}
+function rematch(){
+  const diff = L.nextDiff || G.diff;
+  const avoid = diff === G.diff ? G.li : [];
+  L.fb = null; L.nextDiff = null;
+  commit(ns => {
+    const w = ns.winner;
+    ns.round = (ns.round || 1) + 1; ns.status = "playing"; ns.diff = diff;
+    ns.li = pickLists(diff, avoid); ns.p = {1:blankP(), 2:blankP(), 3:blankP()};
+    ns.seats = SEATS.filter(s => ns.ids[s]);                      // anyone who joined between rounds plays too
+    const after = w && ns.seats.includes(w) ? ns.seats[(ns.seats.indexOf(w) + 1) % ns.seats.length] : ns.seats[0];
+    ns.turn = after; ns.winner = 0;                                // the player after the winner starts
+  });
+}
+async function invite(){
+  const url = location.origin + location.pathname + "?room=" + L.room;
+  const text = `Join my Word Chain game! Room ${L.room}`;
+  if (navigator.share) { try { await navigator.share({title:"Word Chain Duel", text, url}); return; } catch(e){ if (e && e.name === "AbortError") return; } }
+  try { await navigator.clipboard.writeText(url); toastInvite("Link copied. Paste it in your chat."); }
+  catch(e){ toastInvite(url); }
+}
+function toastInvite(msg){ const el = $("#invmsg"); if (el) el.textContent = msg; }
+
+/* ===== rendering ===== */
+function tiles(word, shown, showLen){
+  const w = word.toUpperCase(); let h = "";
+  if (!showLen && shown < w.length) {
+    for (let i = 0; i < shown; i++) h += `<span class="t${i ? " hint" : ""}">${esc(w[i])}</span>`;
+    return h + `<span class="t more">…</span>`;
+  }
+  for (let i = 0; i < w.length; i++)
+    h += i < shown ? `<span class="t${i > 0 && shown < w.length ? " hint" : ""}">${esc(w[i])}</span>` : `<span class="t blank"></span>`;
+  return h;
+}
+const scoreText = ps => `${ps.solved}/${GOAL} · ${plural(ps.miss, "miss")}`;
+function myBoard(){
+  const s = L.seat, ps = G.p[s], list = listOf(s), hard = G.diff === "hard";
+  const myTurn = G.status === "playing" && G.turn === s;
+  let rows = "";
+  list.forEach((word, i) => {
+    let cls = "link", t, pair = "";
+    if (i === 0) { cls += " done"; t = tiles(word, word.length, true); pair = "Starting word"; }
+    else if (i <= ps.solved) { cls += " done"; t = tiles(word, word.length, true); pair = `${list[i-1]} ${word.toLowerCase()}`; }
+    else if (i === ps.solved + 1) { cls += " cur"; t = tiles(word, ps.rev, !hard); if (ps.rev > 1) pair = `${plural(ps.rev - 1, "extra letter")} revealed`; }
+    else t = tiles(word, 1, !hard);
+    if (L.just && L.just.seat === s && L.just.i === i) cls += " just";
+    rows += `<li class="${cls}"><div class="tiles">${t}</div>${pair ? `<div class="pair">${esc(pair)}</div>` : ""}</li>`;
+  });
+  let input = "";
+  if (G.status === "playing") {
+    const prev = list[ps.solved], first = list[ps.solved + 1][0];
+    input = `<form class="guess" id="gform" autocomplete="off">
+      <input type="text" id="guess" placeholder="${myTurn ? `${esc(prev)} + ${esc(first)}…` : "Wait for your turn"}" ${myTurn ? "" : "disabled"}
+        autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Your guess">
+      <button class="btn-main" type="submit" ${myTurn ? "" : "disabled"}>Guess</button></form>`;
+  }
+  const fb = L.fb ? `<p class="feedback ${L.fb.ok ? "ok" : "bad"}" role="status">${esc(L.fb.msg)}</p>` : "";
+  return `<section class="card p${s}">
+    <div class="board-head"><div class="who"><span class="sw"></span><h2>${esc(nameOf(s))} (you)</h2></div>
+    <span class="score">${scoreText(ps)}</span></div>
+    <ol class="chain">${rows}</ol>${input}${fb}</section>`;
+}
+function oppBoard(o){
+  const ps = G.p[o], turn = G.status === "playing" && G.turn === o;
+  const bar = Array.from({length:GOAL}, (_, i) => `<span class="${i < ps.solved ? "f" : ""}"></span>`).join("");
+  return `<div class="prow p${o}">
+    <div class="board-head"><div class="who"><span class="sw"></span><b>${esc(nameOf(o))}</b>${turn ? `<span class="pill">guessing</span>` : ""}</div>
+    <span class="score">${ps.solved}/${GOAL} words</span></div>
+    <div class="prog" role="img" aria-label="${ps.solved} of ${GOAL} words">${bar}</div></div>`;
+}
+function othersHTML(list){
+  if (!list.length) return "";
+  return `<section class="card"><p class="eyebrow">${G.status === "over" ? "Final progress" : "Everyone's progress"}</p>${list.map(oppBoard).join("")}</section>`;
+}
+function answerHTML(){
+  const list = listOf(G.seats[0] || 1);
+  return `<section class="card"><p class="eyebrow">The chain was</p>
+    <p class="answer">${list.map(esc).join(" → ")}</p></section>`;
+}
+function topBar(){
+  const lab = {live:"Live", connecting:"Connecting…", off:"Reconnecting…", idle:"…"}[L.net];
+  const dot = L.net === "live" ? "live" : L.net === "off" ? "off" : "";
+  return `<div class="top"><span class="chip">Room <b>${esc(L.room)}</b></span>
+    <span class="chip"><span class="dot ${dot}"></span>${lab}</span>
+    <button class="btn-ghost" id="leave" type="button" style="padding:6px 12px">Leave</button></div>`;
+}
+function rosterHTML(){
+  return `<ul class="roster">${SEATS.map(s => G.ids[s]
+    ? `<li class="p${s}"><span class="sw"></span><b>${esc(nameOf(s))}</b>${s === L.seat ? `<span class="muted">(you)</span>` : ""}</li>`
+    : `<li class="empty"><span class="sw"></span><span class="muted">Open seat</span></li>`).join("")}</ul>`;
+}
+function homeHTML(){
+  return `
+  <header style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+    <p class="eyebrow">2 or 3 phones · turn by turn</p>
+    <h1>Word Chain Duel</h1>
+    <p class="muted">Everyone races through the same chain of 7 words. You see the first word, then only the first letter of each next word. Every word pairs with the one before it. You can't see anyone's guesses, only how far they've got.</p>
+    <p class="example">APPLE → J… (apple juice) → B… (juice box) → C… (boxcar)</p>
+  </header>
+  <section class="card">
+    <label for="nick">Your name</label>
+    <input type="text" id="nick" maxlength="20" placeholder="e.g. Hadir" value="${esc(L.nick)}">
+  </section>
+  <section class="card">
+    <h2>Create a room</h2>
+    <div class="seg" role="group" aria-label="Difficulty">
+      ${DIFFS.map(d => `<button type="button" data-diff="${d}" aria-pressed="${L.diff === d}">${DIFF_LABEL[d]}</button>`).join("")}
+    </div>
+    <p class="small muted">${{easy:"Everyday compound words.", medium:"Trickier pairs, like Red Sea → seaside.", hard:"Tough pairs, and word lengths are hidden."}[L.diff]}</p>
+    <button class="btn-main" id="create" type="button">Create room</button>
+  </section>
+  <section class="card">
+    <h2>Join a room</h2>
+    <div class="row"><input type="text" id="jcode" maxlength="4" placeholder="ABCD" value="${esc(L.joinCode)}" autocapitalize="characters" autocomplete="off" style="font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase">
+      <button class="btn-main" id="join" type="button">Join</button></div>
+    <p class="err" id="joinerr">${esc(L.joinErr)}</p>
+  </section>
+  <section class="card">
+    <h2>Rules</h2>
+    <ul class="rules small">
+      <li>Guess your next word. Right: keep going. Wrong: your turn passes to the next player.</li>
+      <li>Every miss reveals one more letter of that word.</li>
+      <li>First to finish their chain wins.</li>
+    </ul>
+  </section>`;
+}
+function askNameHTML(){
+  return `<header style="display:flex;flex-direction:column;gap:8px;padding-top:6px"><p class="eyebrow">You're invited · room ${esc(L.joinCode)}</p><h1>Word Chain Duel</h1></header>
+  <section class="card"><label for="nick">Your name</label>
+    <input type="text" id="nick" maxlength="20" placeholder="Your name" value="${esc(L.nick)}">
+    <button class="btn-main" id="joinlink" type="button">Join the game</button></section>`;
+}
+function gameHTML(){
+  if (L.screen === "loading") return topBar() + `<section class="card center"><p class="muted">Finding room ${esc(L.room)}…</p></section>`;
+  if (L.screen === "notfound") return topBar() + `<section class="card"><h2>Room not found</h2>
+    <p class="muted">Check the code with the other players. Rooms last about 12 hours.</p>
+    <button class="btn-main" id="leave2" type="button">Back</button></section>`;
+  let h = topBar();
+  if (L.sendErr) h += `<p class="toast">Couldn't send your move. Retrying…</p>`;
+
+  if (!L.seat) {
+    const free = SEATS.some(s => !G.ids[s]);
+    if (G.status !== "playing" && free) return h + `<section class="card center"><p class="muted">Joining the room…</p></section>`;
+    const who = G.status === "playing" ? G.seats : members();
+    h += `<section class="card"><h2>${G.status === "playing" ? "This game has already started" : "This room is full"}</h2>
+      <p class="muted">If you're one of these players on a new phone, pick your name.${G.status === "playing" && free ? " Otherwise, wait here and you'll join the next round." : ""}</p>
+      <div class="row" style="flex-wrap:wrap">${who.map(s => `<button class="btn-ghost" data-claim="${s}" type="button" style="flex:1">I'm ${esc(nameOf(s))}</button>`).join("")}</div></section>`;
+    if (G.status === "playing") h += othersHTML(G.seats);
+    return h;
+  }
+  if (G.status === "lobby") {
+    const n = members().length;
+    h += `<section class="card center"><p class="eyebrow">Room code</p><div class="bigcode">${esc(L.room)}</div>
+      <p class="muted">Send the invite, or have them open this page and type the code.</p>
+      <button class="btn-ghost" id="invite" type="button">Send invite</button>
+      <p class="small muted" id="invmsg" style="overflow-wrap:anywhere"></p></section>
+      <section class="card"><div class="board-head"><h2>Players</h2><span class="score">${n}/${MAX_P} · ${DIFF_LABEL[G.diff]}</span></div>
+      ${rosterHTML()}
+      <button class="btn-main" id="start" type="button" ${n < 2 ? "disabled" : ""}>${n < 2 ? "Waiting for a second player…" : `Start with ${n} players`}</button>
+      <p class="small muted">${n < MAX_P ? "The game starts by itself when a third player joins." : ""}</p></section>`;
+    return h;
+  }
+  const playing = inRound(L.seat);
+  if (G.status === "over") {
+    const w = G.winner, mine = w === L.seat, nd = L.nextDiff || G.diff;
+    h += `<section class="win p${w}" role="status"><p class="eyebrow" style="color:inherit">Game over</p>
+      <h2>${mine ? "You win!" : `${esc(nameOf(w))} wins`}</h2>
+      <p>Finished with ${plural(G.p[w].miss, "miss")}.</p>
+      <div class="seg" role="group" aria-label="Next difficulty">${DIFFS.map(d => `<button type="button" data-next="${d}" aria-pressed="${nd === d}"><span>${DIFF_LABEL[d]}</span></button>`).join("")}</div>
+      <button class="btn-main" id="rematch" type="button">Play again with new chains</button>
+      <p class="small">Anyone can start the next round.${SEATS.some(s => !G.ids[s]) ? " A new player can join now with the room code." : ""}</p></section>`;
+  } else if (!playing) {
+    h += `<div class="banner wait"><span>You're in for the next round<span class="sub">This round is already underway. Watch along below.</span></span></div>`;
+  } else {
+    const yours = G.turn === L.seat;
+    h += `<div class="banner p${G.turn}"><span>${yours ? "Your turn" : `${esc(nameOf(G.turn))}'s turn`}
+      <span class="sub">${yours ? "Guess until you miss." : `Turn order: ${G.seats.map(s => esc(nameOf(s))).join(" → ")}`}</span></span></div>`;
+  }
+  const others = othersHTML(G.seats.filter(s => s !== L.seat));
+  if (G.status === "over") return h + answerHTML() + others + (playing ? myBoard() : "");
+  return h + (playing ? myBoard() : "") + others;
+}
+function render(){
+  const ae = document.activeElement, aid = ae && ae.id;
+  const draft = $("#guess") ? $("#guess").value : "";
+  $("#app").innerHTML = L.screen === "home" ? homeHTML() : L.screen === "askname" ? askNameHTML() : gameHTML();
+  const g = $("#guess"); if (g && !g.disabled && draft) g.value = draft;
+  if (aid) { const el = document.getElementById(aid); if (el && !el.disabled) { el.focus({preventScroll:true}); try { const n = el.value.length; el.setSelectionRange(n, n); } catch(e){} } }
+  if (L.fb && L.fb.shake && g) { g.classList.add("shake"); L.fb.shake = false; }
+  if (L.just) setTimeout(() => { L.just = null; }, 700);
+  document.title = G && G.status === "playing" && G.turn === L.seat ? "Your turn · Word Chain Duel" : "Word Chain Duel";
+}
+
+/* ===== events ===== */
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.diff) { L.diff = b.dataset.diff; render(); return; }
+  if (b.dataset.next) { L.nextDiff = b.dataset.next; render(); return; }
+  if (b.dataset.claim) { claimSeat(+b.dataset.claim); return; }
+  switch (b.id) {
+    case "create": createRoom(); break;
+    case "join": {
+      const c = (($("#jcode") || {}).value || "").trim().toUpperCase();
+      if (!validCode(c)) { L.joinErr = "Room codes are 4 letters or numbers, like K7QP."; render(); return; }
+      L.joinErr = ""; enterRoom(c); break;
+    }
+    case "leave": case "leave2": leaveRoom(); break;
+    case "invite": invite(); break;
+    case "start": startGame(); break;
+    case "joinlink": enterRoom(L.joinCode); break;
+    case "rematch": rematch(); break;
+  }
+});
+document.addEventListener("submit", e => { if (e.target.id === "gform") { e.preventDefault(); guess(); } });
+document.addEventListener("input", e => {
+  if (e.target.id === "nick") { L.nick = e.target.value; store.set("wcd:nick", L.nick); }
+  if (e.target.id === "jcode") { L.joinCode = e.target.value.toUpperCase(); }
+});
+document.addEventListener("animationend", e => e.target.classList.remove("shake"));
+document.addEventListener("visibilitychange", () => {   // phones pause background pages; reconnect on return
+  if (document.visibilityState === "visible" && L.room && (!es || es.readyState === 2)) subscribe();
+});
+
+/* ===== boot: ?room=CODE opens that room ===== */
+function boot(){
+  const q = new URLSearchParams(location.search).get("room");
+  const code = (q || "").toUpperCase();
+  if (validCode(code)) {
+    L.joinCode = code;
+    if (!store.get("wcd:seat:" + code) && !L.nick.trim()) { L.screen = "askname"; render(); return; }
+    enterRoom(code); return;
+  }
+  render();
+}
+boot();
+</script>
+</body>
+</html>
